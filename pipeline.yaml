@@ -1,0 +1,543 @@
+pool: 
+  vmImage: ubuntu-20.04
+
+trigger:
+  branches:
+    include:
+      - "MYBRANCH1732"      
+    exclude:
+      - "release"
+      - "test*"
+      - "*"
+      - "feature/*"
+      - "fix/*"
+      - "main"
+  paths:
+    include:
+      - "mypackage_core_py/*"
+      - "setup.py"
+
+
+variables: 
+- group: databricks-sp-vg
+
+name: $(BuildFrom).$(major).$(minor)$(Rev:.r)
+
+stages:
+  - stage: Build
+    displayName: 'Build Stage'
+    jobs:
+
+    - job: build_publish_package
+      variables:
+        mydate: $[format('{0:yyyyMMdd}', pipeline.startTime)]
+        pythonVersion: 3.8
+        package: py_artifacts_1732 
+        envVariable: "dev"
+        srcDirectory: mypackage_core_py/$(package)
+        square_varray_lower: $[  lower( variables['Build.SourceBranchName'] ) ]
+        curly_varray_lower:  ${{ lower( variables['Build.SourceBranchName'] ) }} 
+        BuildDate: $(mydate)
+        ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+          BuildFrom: main
+          brpatch: $[counter(variables['build.sourcebranchname'], 0)]
+        ${{ else }}:
+          bar: $[replace(variables['square_varray_lower'], '_', '-')]
+          BuildFrom: $[replace(lower( variables['Build.SourceBranchName'] ) , '_', '-')]
+          brpatch: $[counter(variables['build.sourcebranchname'], 0)]  
+        major: 1
+        minor: 1  
+        RevisionNumber: $(major).$(minor).$(brpatch)
+        packageBuildName: dip-py-whl-build-$(BuildFrom)-$(mydate)-$(major).$(minor).$(brpatch)
+  
+
+      steps:
+        - task: UsePythonVersion@0
+          displayName: Use Python $(pythonVersion)
+          inputs:
+            versionSpec: $(pythonVersion)
+        - checkout: self
+        - script: |
+            pip install pkginfo wheel
+            python setup.py bdist_wheel
+          displayName: Build package
+        - powershell: |
+            Write-Host $(mydate)
+        - bash: |
+            VERSION=$(python -c 'import glob; from pkginfo import Wheel; w = Wheel(glob.glob("*.whl")[0]);print(w.version)')
+            WHEELNAME=$(python -c 'import glob; from pkginfo import Wheel; w = Wheel(glob.glob("*.whl")[0]);print(w)')
+            echo "bar val is: " $(bar)
+            echo "Build Definition version:" $(Build.DefinitionVersion)
+            echo "Get package version"
+            echo "Source Branch is:"
+            echo $(Build.SourceBranch)
+            echo "Source Branch Name is:"
+            echo $(Build.SourceBranchName)  
+            echo "Date is:"
+            echo $(BuildDate)
+            echo square_varray_lower:   $(square_varray_lower)
+            echo curly_varray_lower:  $(curly_varray_lower)
+            echo "Revision number is:"
+            echo $(RevisionNumber)
+            echo "Variable BuildFrom is:"
+            echo $(BuildFrom)
+            echo "srcDirectory is:"
+            echo $(srcDirectory)
+            echo "Get patch number"
+            echo "##vso[build.updatebuildnumber]$(major).$(minor)-$(Build.SourceBranchName).$(brpatch)"
+            echo $VERSION
+            echo "Wheel name is:"
+            echo $WHEELNAME
+            echo "package build name"
+            echo $(packageBuildName)
+          displayName: Get package version
+          workingDirectory: dist/
+
+        - task: CopyFiles@2
+          displayName: Copy package for later use in the pipeline
+          inputs:
+            contents: dist/**
+            targetFolder: $(Build.ArtifactStagingDirectory)
+
+        - task: PublishBuildArtifacts@1
+          inputs:
+            pathToPublish: '$(Build.ArtifactStagingDirectory)'
+            artifactName: dfordbx
+
+        - task: UniversalPackages@0
+          displayName: Publish
+          inputs:
+            command: publish
+            publishDirectory: $(Build.ArtifactStagingDirectory)/dist/
+            vstsFeedPublish: 'MyProjectName/py_artifacts_1732'
+            vstsFeedPackagePublish: $(packageBuildName)
+
+
+        - bash: |
+            echo "Structure of work folder of this pipeline:"
+            tree $(Agent.WorkFolder)\1 /f
+            echo "Build.ArtifactStagingDirectory:" 
+            echo "$(Build.ArtifactStagingDirectory)"
+            echo "Build.BinariesDirectory:" 
+            echo "$(Build.BinariesDirectory)"
+            echo "Build.SourcesDirectory:"
+            echo "$(Build.SourcesDirectory)"
+          displayName: GetFolderStructure 
+            
+            
+  
+  - stage: Release
+    displayName: 'Find artifact wheel location'
+    dependsOn: 
+    - Build
+
+    jobs:
+
+    - job: download_published_artifact
+      steps:
+        - task: DownloadPipelineArtifact@2
+          inputs:
+            buildType: 'current'
+            project: 'MyProjectName'
+            buildVersionToDownload: $(major).$(minor)$(Rev:.r)
+            artifactName: dfordbx      
+            targetPath: '$(System.ArtifactsDirectory)'
+
+
+        - pwsh: |
+            $whlFile = Get-ChildItem -Filter *.whl -Path "$(System.ArtifactsDirectory)/dist" | ForEach-Object { $_.fullname } | Select-Object -First 1
+            Write-Host "##vso[task.setvariable variable=whlFile]$whlFile"
+          name: SetVars
+
+        - pwsh: |
+            Write-Host "Wheel name is $env:whlFile"
+
+        - bash: |
+            echo "Wheel name is:" 
+            echo "$(whlFile)"
+          displayName: GetWheelName
+
+
+
+### Deploy built wheel on databricks Dev workspace
+  - stage: DeployDev
+    displayName: 'Deploy Stage in Dev env'
+    dependsOn: 
+    - Build
+    - Release
+
+    jobs:
+
+
+    - job: download_wheel_from_build_pipeline
+      steps:
+
+        - task: DownloadPipelineArtifact@2
+          inputs:
+            buildType: 'current'
+            project: 'MyProjectName'
+            buildVersionToDownload: 'latest'
+            artifactName: dfordbx      
+            targetPath: '$(System.ArtifactsDirectory)'
+
+
+        - pwsh: |
+            $whlFile = Get-ChildItem -Filter *.whl -Path "$(System.ArtifactsDirectory)/dist" | ForEach-Object { $_.fullname } | Select-Object -First 1
+            Write-Host "##vso[task.setvariable variable=whlFile]$whlFile"
+          name: SetVars
+
+        - pwsh: |
+            Write-Host "Wheel name is $env:whlFile"
+
+        - bash: |
+            echo "Wheel name is:" 
+            echo "$(whlFile)"
+          displayName: GetWheelName
+
+
+        
+    - job: authenticate_databricks
+      dependsOn: download_wheel_from_build_pipeline
+      variables: 
+      - group: databricks-sp-vg
+
+      steps:
+        - task: PythonScript@0
+          displayName: "Get authentication tokens"
+          name: "auth_tokens"
+          inputs: 
+            scriptSource: 'filePath'
+            scriptPath: authenticate.py
+          env:
+            SVCDirectoryID: '$(SVCDirectoryID)'
+            SVCApplicationID: '$(SVCApplicationID)'
+            SVCSecretKey: '$(SVCSecretKey)'
+    
+    - job: upload_wheel_to_DBFS
+      dependsOn:
+        - authenticate_databricks
+      variables:
+        DBRKS_BEARER_TOKEN: $[dependencies.authenticate_databricks.outputs['auth_tokens.DBRKS_BEARER_TOKEN']]
+
+      steps:
+
+        - task: DownloadPipelineArtifact@2
+          inputs:
+            buildType: 'current'
+            project: 'MyProjectName'
+            buildVersionToDownload: 'latest'
+            artifactName: dfordbx      
+            targetPath: '$(System.ArtifactsDirectory)'
+        
+        - pwsh: |
+            $whlFile = Get-ChildItem -Filter *.whl -Path "$(System.ArtifactsDirectory)/dist" | ForEach-Object { $_.fullname } | Select-Object -First 1
+            Write-Host "##vso[task.setvariable variable=whlFile]$whlFile"
+          name: SetVars
+
+        - bash: |
+            echo "Wheel name is:" 
+            echo "$(whlFile)"
+          displayName: GetWheelName
+
+        - bash: |
+            echo "SubscriptionID:"
+            echo $(SubscriptionID)
+            echo "ResourceGroup:"
+            echo $(ResourceGroup)
+            echo "WorkspaceName:"
+            echo $(WorkspaceName)
+            echo "DBRKS_CLUSTER:"
+            echo $(DBRKS_CLUSTER_ID)
+            echo "DBXInstance:"
+            echo $(DBXInstance)
+            echo "System.ArtifactsDirectory"
+            echo $(System.ArtifactsDirectory)
+          displayName: GerEnvVariablesBeforeUploadToDBFS
+
+        - task: PythonScript@0
+          displayName: "upload wheel to DBFS"
+          inputs:
+            scriptSource: 'filePath' 
+            scriptPath: upload_wheel_to_dbfs.py
+          env:
+            DBRKS_BEARER_TOKEN: '$(DBRKS_BEARER_TOKEN)'
+            DBRKS_MANAGEMENT_TOKEN: '$(DBRKS_MANAGEMENT_TOKEN)'
+            DBRKS_SUBSCRIPTION_ID: '$(SubscriptionID)'
+            DBRKS_INSTANCE: '$(DBXInstance)'
+            DBRKS_RESOURCE_GROUP: '$(ResourceGroup)'
+            DBRKS_WORKSPACE_NAME: '$(WorkspaceName)'
+            SYSTEM_ARTIFACTSDIRECTORY: '$(System.ArtifactsDirectory)'
+            DBRKS_DBFS_WHL_LOC: '$(DBRKS_DBFS_WHL_LOC_DEV)'
+            WHL_NAME: '$(whlFile)'
+
+    - job: install_wheel_on_cluster
+      dependsOn: 
+        - authenticate_databricks
+        - upload_wheel_to_DBFS
+
+      variables:
+        DBRKS_BEARER_TOKEN: $[dependencies.authenticate_databricks.outputs['auth_tokens.DBRKS_BEARER_TOKEN']]
+        DBRKS_MANAGEMENT_TOKEN: $[dependencies.authenticate_databricks.outputs['auth_tokens.DBRKS_MANAGEMENT_TOKEN']]
+      
+      steps:
+
+        - task: DownloadPipelineArtifact@2
+          inputs:
+            buildType: 'current'
+            project: 'MyProjectName'
+            buildVersionToDownload: 'latest'
+            artifactName: dfordbx      
+            targetPath: '$(System.ArtifactsDirectory)'
+
+        - pwsh: |
+            $whlFile = Get-ChildItem -Filter *.whl -Path "$(System.ArtifactsDirectory)/dist" | ForEach-Object { $_.fullname } | Select-Object -First 1
+            Write-Host "##vso[task.setvariable variable=whlFile]$whlFile"
+          name: SetVars
+
+        - bash: |
+            echo "SubscriptionID:"
+            echo $(SubscriptionID)
+            echo "ResourceGroup:"
+            echo $(ResourceGroup)
+            echo "WorkspaceName:"
+            echo $(WorkspaceName)
+            echo "DBRKS_CLUSTER:"
+            echo $(DBRKS_CLUSTER_ID)
+            echo "DBXInstance:"
+            echo $(DBXInstance)
+            echo "System.ArtifactsDirectory"
+            echo $(System.ArtifactsDirectory)
+            echo "Wheel name:"
+            echo $(whlFile)
+          displayName: GerEnvVariablesBeforeStartingCluster
+
+        - task: PythonScript@0
+          displayName: "Start cluster before installing wheel"
+          inputs:
+            scriptSource: 'filepath'
+            scriptPath: start_cluster.py
+          env:
+            DBRKS_BEARER_TOKEN: '$(DBRKS_BEARER_TOKEN)'
+            DBRKS_MANAGEMENT_TOKEN: '$(DBRKS_MANAGEMENT_TOKEN)'
+            DBRKS_SUBSCRIPTION_ID: '$(SubscriptionID)'
+            DBRKS_RESOURCE_GROUP: '$(ResourceGroup)'
+            DBRKS_WORKSPACE_NAME: '$(WorkspaceName)'
+            DBRKS_CLUSTER_ID: '$(DBRKS_CLUSTER_ID)'
+            DBRKS_INSTANCE: '$(DBXInstance)'
+
+
+        - task: PythonScript@0
+          displayName: "install wheel"
+          inputs:
+            scriptSource: 'filepath'
+            scriptPath: install_wheel.py
+          env:
+            DBRKS_BEARER_TOKEN: '$(DBRKS_BEARER_TOKEN)'
+            DBRKS_MANAGEMENT_TOKEN: '$(DBRKS_MANAGEMENT_TOKEN)'
+            DBRKS_SUBSCRIPTION_ID: '$(SubscriptionID)'
+            DBRKS_RESOURCE_GROUP: '$(ResourceGroup)'
+            DBRKS_WORKSPACE_NAME: '$(WorkspaceName)'
+            DBRKS_CLUSTER_ID: '$(DBRKS_CLUSTER_ID)'
+            DBRKS_INSTANCE: '$(DBXInstance)'
+            WHL_NAME: $(whlFile)
+            DBRKS_DBFS_WHL_LOC: '$(DBRKS_DBFS_WHL_LOC_DEV)'
+
+        - task: PythonScript@0
+          displayName: "Restart cluster to apply changes"
+          inputs:
+            scriptSource: 'filepath'
+            scriptPath: start_cluster.py
+          env:
+            DBRKS_BEARER_TOKEN: '$(DBRKS_BEARER_TOKEN)'
+            DBRKS_MANAGEMENT_TOKEN: '$(DBRKS_MANAGEMENT_TOKEN)'
+            DBRKS_SUBSCRIPTION_ID: '$(SubscriptionID)'
+            DBRKS_RESOURCE_GROUP: '$(ResourceGroup)'
+            DBRKS_WORKSPACE_NAME: '$(WorkspaceName)'
+            DBRKS_CLUSTER_ID: '$(DBRKS_CLUSTER_ID)'
+            DBRKS_INSTANCE: '$(DBXInstance)'
+### End of deploy built wheel on databricks Dev workspace            
+
+
+
+### Deploy to QA env 
+  - stage: DeployQA
+    displayName: 'Deploy Stage in QA env'
+    dependsOn: 
+    - Build
+
+
+    jobs:
+    - deployment: QA
+      displayName: "Deploy wheel to QA env"
+      environment: qa_env_dbrx
+
+    - job: download_wheel_from_build_pipeline
+      steps:
+
+        - task: DownloadPipelineArtifact@2
+          inputs:
+            buildType: 'current'
+            project: 'MyProjectName'
+            buildVersionToDownload: 'latest'
+            artifactName: dfordbx      
+            targetPath: '$(System.ArtifactsDirectory)'
+
+        - pwsh: |
+            $whlFile = Get-ChildItem -Filter *.whl -Path "$(System.ArtifactsDirectory)/dist" | ForEach-Object { $_.fullname } | Select-Object -First 1
+            Write-Host "##vso[task.setvariable variable=whlFile]$whlFile"
+          name: SetVars
+
+        - pwsh: |
+            Write-Host "Wheel name is $env:whlFile"
+
+        - bash: |
+            echo "Wheel name is:" 
+            echo "$(whlFile)"
+          displayName: GetWheelName
+
+         
+    - job: authenticate_databricks
+      dependsOn: download_wheel_from_build_pipeline
+
+      steps:
+        - task: PythonScript@0
+          displayName: "Get authentication tokens"
+          name: "auth_tokens"
+          inputs: 
+            scriptSource: 'filePath'
+            scriptPath: authenticate.py
+          env:
+            SVCDirectoryID: '$(SVCDirectoryID)'
+            SVCApplicationID: '$(SVCApplicationID)'
+            SVCSecretKey: '$(SVCSecretKey)'
+    
+    - job: upload_wheel_to_DBFS
+      dependsOn:
+        - authenticate_databricks
+      variables:
+        DBRKS_BEARER_TOKEN: $[dependencies.authenticate_databricks.outputs['auth_tokens.DBRKS_BEARER_TOKEN']]
+        DBRKS_MANAGEMENT_TOKEN: $[dependencies.authenticate_databricks.outputs['auth_tokens.DBRKS_MANAGEMENT_TOKEN']]
+        
+
+      steps:
+
+        - task: DownloadPipelineArtifact@2
+          inputs:
+            buildType: 'current'
+            project: 'MyProjectName'
+            buildVersionToDownload: 'latest'
+            artifactName: dfordbx      
+            targetPath: '$(System.ArtifactsDirectory)'
+        
+        - pwsh: |
+            $whlFile = Get-ChildItem -Filter *.whl -Path "$(System.ArtifactsDirectory)/dist" | ForEach-Object { $_.fullname } | Select-Object -First 1
+            Write-Host "##vso[task.setvariable variable=whlFile]$whlFile"
+          name: SetVars
+
+        - bash: |
+            echo "Wheel name is:" 
+            echo "$(whlFile)"
+          displayName: GetWheelName
+
+        - bash: |
+            echo "SubscriptionID_QA:"
+            echo $(SubscriptionID_QA)
+            echo "ResourceGroup_QA:"
+            echo $(ResourceGroup_QA)
+            echo "WorkspaceName:"
+            echo $(WorkspaceName_QA)
+            echo "DBRKS_CLUSTER_QA:"
+            echo $(DBRKS_CLUSTER_QA)
+            echo "DBXInstance_QA:"
+            echo $(DBXInstance_QA)
+            echo "System.ArtifactsDirectory"
+            echo $(System.ArtifactsDirectory)
+          displayName: GerEnvVariablesBeforeUploadToDBFS
+
+        - task: PythonScript@0
+          displayName: "upload wheel to DBFS"
+          inputs:
+            scriptSource: 'filePath' 
+            scriptPath: upload_wheel_to_dbfs.py
+          env:
+            DBRKS_BEARER_TOKEN: '$(DBRKS_BEARER_TOKEN)'
+            DBRKS_MANAGEMENT_TOKEN: '$(DBRKS_MANAGEMENT_TOKEN)'
+            DBRKS_SUBSCRIPTION_ID: '$(SubscriptionID_QA)'
+            DBRKS_INSTANCE: '$(DBXInstance_QA)'
+            DBRKS_RESOURCE_GROUP: '$(ResourceGroup_QA)'
+            DBRKS_WORKSPACE_NAME: '$(WorkspaceName_QA)'
+            SYSTEM_ARTIFACTSDIRECTORY: '$(System.ArtifactsDirectory)'
+            DBRKS_DBFS_WHL_LOC: '$(DBRKS_DBFS_WHL_LOC_QA)'
+            WHL_NAME: '$(whlFile)'
+
+    - job: install_wheel_on_cluster
+      dependsOn: 
+        - authenticate_databricks
+        - upload_wheel_to_DBFS
+
+      variables:
+        DBRKS_BEARER_TOKEN: $[dependencies.authenticate_databricks.outputs['auth_tokens.DBRKS_BEARER_TOKEN']]
+        DBRKS_MANAGEMENT_TOKEN: $[dependencies.authenticate_databricks.outputs['auth_tokens.DBRKS_MANAGEMENT_TOKEN']]
+      
+      steps:
+
+        - task: DownloadPipelineArtifact@2
+          inputs:
+            buildType: 'current'
+            project: 'MyProjectName'
+            buildVersionToDownload: 'latest'
+            artifactName: dfordbx      
+            targetPath: '$(System.ArtifactsDirectory)'
+
+        - pwsh: |
+            $whlFile = Get-ChildItem -Filter *.whl -Path "$(System.ArtifactsDirectory)/dist" | ForEach-Object { $_.fullname } | Select-Object -First 1
+            Write-Host "##vso[task.setvariable variable=whlFile]$whlFile"
+          name: SetVars
+
+        - bash: |
+            echo "SubscriptionID_QA:"
+            echo $(SubscriptionID_QA)
+            echo "ResourceGroup_QA:"
+            echo $(ResourceGroup_QA)
+            echo "WorkspaceName_QA:"
+            echo $(WorkspaceName_QA)
+            echo "DBRKS_CLUSTER_QA:"
+            echo $(DBRKS_CLUSTER_QA)
+            echo "DBXInstance_QA:"
+            echo $(DBXInstance_QA)
+            echo "System.ArtifactsDirectory"
+            echo $(System.ArtifactsDirectory)
+            echo "Wheel name:"
+            echo $(whlFile)
+          displayName: GerEnvVariablesBeforeStartingCluster
+
+
+        - task: PythonScript@0
+          displayName: "install wheel"
+          inputs:
+            scriptSource: 'filepath'
+            scriptPath: install_wheel.py
+          env:
+            DBRKS_BEARER_TOKEN: '$(DBRKS_BEARER_TOKEN)'
+            DBRKS_MANAGEMENT_TOKEN: '$(DBRKS_MANAGEMENT_TOKEN)'
+            DBRKS_SUBSCRIPTION_ID: '$(SubscriptionID_QA)'
+            DBRKS_RESOURCE_GROUP: '$(ResourceGroup_QA)'
+            DBRKS_WORKSPACE_NAME: '$(WorkspaceName_QA)'
+            DBRKS_CLUSTER_ID: '$(DBRKS_CLUSTER_QA)'
+            DBRKS_INSTANCE: '$(DBXInstance_QA)'
+            WHL_NAME: $(whlFile)
+            DBRKS_DBFS_WHL_LOC: '$(DBRKS_DBFS_WHL_LOC_QA)'
+
+        - task: PythonScript@0
+          displayName: "Restart cluster to apply changes"
+          inputs:
+            scriptSource: 'filepath'
+            scriptPath: start_cluster.py
+          env:
+            DBRKS_BEARER_TOKEN: '$(DBRKS_BEARER_TOKEN)'
+            DBRKS_MANAGEMENT_TOKEN: '$(DBRKS_MANAGEMENT_TOKEN)'
+            DBRKS_SUBSCRIPTION_ID: '$(SubscriptionID_QA)'
+            DBRKS_RESOURCE_GROUP: '$(ResourceGroup_QA)'
+            DBRKS_WORKSPACE_NAME: '$(WorkspaceName_QA)'
+            DBRKS_CLUSTER_ID: '$(DBRKS_CLUSTER_QA)'
+            DBRKS_INSTANCE: '$(DBXInstance_QA)'
