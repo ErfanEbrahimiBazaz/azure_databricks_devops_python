@@ -10,7 +10,7 @@ To reproduce the error follow the steps below:
 
 | Variable Name   | Description |  Value |
 | ----------- | ----------- |
-|  DBFS_WHL_LOC    |       |        |
+|  DBFS_WHL_LOC    |  Wheel location in DBFS (Azure Databricks File System)     |    Any Name of your choice    |
 |  DBRKS_CLUSTER_ID  |        |       |
 |  DBRKS_CLUSTER_QA  |        |       |
 |  DBRKS_DBFS_WHL_LOC_DEV  |        |       |
