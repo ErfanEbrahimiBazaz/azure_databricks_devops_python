@@ -9,7 +9,7 @@ To reproduce the error follow the steps below:
 5. Make a variable group in Azure DevOps called databricks-sp-vg. This variable group must contain the following values:
 
 | Variable Name   | Description |  Value |
-| ----------- | ----------- |
+| ----------- | ----------- | ----------- |
 |  DBFS_WHL_LOC    |  Wheel location in DBFS (Azure Databricks File System)     |    Any Name of your choice    |
 |  DBRKS_CLUSTER_ID  |        |       |
 |  DBRKS_CLUSTER_QA  |        |       |
