@@ -10,18 +10,17 @@ To reproduce the error follow the steps below:
 
 | Variable Name   | Description |  Value |
 | ----------- | ----------- | ----------- |
-|  DBFS_WHL_LOC    |  Wheel location in DBFS (Azure Databricks File System)     |    Any Name of your choice    |
-|  DBRKS_CLUSTER_ID  |        |       |
-|  DBRKS_CLUSTER_QA  |        |       |
-|  DBRKS_DBFS_WHL_LOC_DEV  |        |       |
-|  DBRKS_DBFS_WHL_LOC_QA  |        |       |
-|  DBXInstance  |        |       |
-|  DBXInstance_QA  |        |       |
-|  ResourceGroup_QA  |        |       |
-|  SubscriptionID  |        |       |
-|  SubscriptionID_QA  |        |       |
-|  SVCApplicationID  |        |       |
-|  SVCDirectoryID  |        |       |
-|  SVCSecretKey  |        |       |
-|  WorkspaceName  |        |       |
-|  WorkspaceName_QA  |        |       |
+|  DBFS_WHL_LOC    |  Wheel location in DBFS (Azure Databricks File System) for DEV env    |    Any Name of your choice. It will be the folder name in DBFS    |
+|  DBRKS_CLUSTER_ID  |    Copy paste the cluster Id you create in your Azure databricks workspace for DEV environment   |   It's the value coming after cluster in URL like clusters/02...oonfx6kc   |
+|  DBRKS_CLUSTER_QA  | Copy paste the cluster Id you create in your Azure databricks workspace for DEV environment    |  It's the value coming after cluster in URL like clusters/02...oonfx6kc     |
+|  DBRKS_DBFS_WHL_LOC_QA  |    Wheel location in DBFS (Azure Databricks File System) for DEV env      |    Any Name of your choice. It will be the folder name in DBFS   |
+|  DBXInstance  |  name of databricks workspace  in DEV env      |       You can read it in Azure portal in your databricks service page |
+|  DBXInstance_QA  |      name of databricks workspace  in QA env     |    You can read it in Azure portal in your databricks service page   |
+|  ResourceGroup_QA  |    name of Azure Resource Group in QA env     | You can read it in Azure portal in RG page      |
+|  SubscriptionID  |    name of Azure subscription in DEV environment   |  Read it from Azure      |
+|  SubscriptionID_QA  |  name of Azure subscription in QA environment      |  Read it from Azure      |
+|  SVCApplicationID  |   Service Connection Application Id     | You can read it from the Azure Active Directory App Registration      |
+|  SVCDirectoryID  |    Service Connection Tenant Id     | You can read it from the Azure Active Directory App Registration      |
+|  SVCSecretKey  |     Service Connection Secret Key    |      You can read it from the Azure Active Directory App Registration |
+|  WorkspaceName  |   Databricks worksapce name in DEV env     |     From Azure portal for databricks service page  |
+|  WorkspaceName_QA  |   Databricks worksapce name in QA env     |      From Azure portal for databricks service page |
