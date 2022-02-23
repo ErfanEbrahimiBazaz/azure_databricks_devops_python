@@ -10,5 +10,18 @@ To reproduce the error follow the steps below:
 
 | Variable Name   | Description |  Value |
 | ----------- | ----------- |
-|      |       |        |
-|    |        |       |
+|  DBFS_WHL_LOC    |       |        |
+|  DBRKS_CLUSTER_ID  |        |       |
+|  DBRKS_CLUSTER_QA  |        |       |
+|  DBRKS_DBFS_WHL_LOC_DEV  |        |       |
+|  DBRKS_DBFS_WHL_LOC_QA  |        |       |
+|  DBXInstance  |        |       |
+|  DBXInstance_QA  |        |       |
+|  ResourceGroup_QA  |        |       |
+|  SubscriptionID  |        |       |
+|  SubscriptionID_QA  |        |       |
+|  SVCApplicationID  |        |       |
+|  SVCDirectoryID  |        |       |
+|  SVCSecretKey  |        |       |
+|  WorkspaceName  |        |       |
+|  WorkspaceName_QA  |        |       |
