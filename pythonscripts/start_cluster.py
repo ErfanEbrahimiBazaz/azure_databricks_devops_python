@@ -12,16 +12,7 @@ DBRKS_REQ_HEADERS = {
     'X-Databricks-Azure-SP-Management-Token': os.environ['DBRKS_MANAGEMENT_TOKEN']}
 
 
-# env_type = os.environ['ENV']
-# if(env_type=='dev'):
-#     # DBRKS_CLUSTER_ID = {'cluster_id': '0209-141629-oonfx6kc'}   
-#     DBRKS_CLUSTER_ID = {'cluster_id': os.environ["DBRKS_CLUSTER_ID"]}   
-# elif(env_type=='qa'):
-#     # DBRKS_CLUSTER_ID = {'cluster_id': '0221-130916-sy5u5oas'}
-#     DBRKS_CLUSTER_ID = {'cluster_id': os.environ["DBRKS_CLUSTER_ID_QA"]}  
-# else:
-#     DBRKS_CLUSTER_ID = {'cluster_id': '0221-181750-whbkqb6n'}
-#     # DBRKS_CLUSTER_ID = {'cluster_id': os.environ["DBRKS_CLUSTER_ID_PRD"]}   
+
 
 
 
@@ -48,7 +39,7 @@ def get_dbrks_cluster_info():
     print('Inside get_dbrks_cluster_info method')
     print('DBRKS_CLUSETR_ID: {}'.format(DBRKS_CLUSTER_ID))
     response = requests.get("https://"+os.environ['DBRKS_INSTANCE']+".azuredatabricks.net/" + DBRKS_INFO_ENDPOINT, headers=DBRKS_REQ_HEADERS, params=DBRKS_CLUSTER_ID)
-    # response = requests.get("https://"+os.environ['DBRKS_INSTANCE']+".azuredatabricks.net/" + DBRKS_INFO_ENDPOINT, headers=DBRKS_REQ_HEADERS, params={'cluster_id': os.environ["DBRKS_CLUSTER_ID"]})
+    
     if response.status_code == 200:
         return json.loads(response.content)
     else:
@@ -60,7 +51,7 @@ def start_dbrks_cluster():
     print('Inside start_dbrks_cluster method')
     print('DBRKS_CLUSETR_ID: {}'.format(DBRKS_CLUSTER_ID))
     response = requests.post("https://"+os.environ['DBRKS_INSTANCE']+".azuredatabricks.net/" + DBRKS_START_ENDPOINT, headers=DBRKS_REQ_HEADERS, json=DBRKS_CLUSTER_ID)
-    # response = requests.post("https://"+os.environ['DBRKS_INSTANCE']+".azuredatabricks.net/" + DBRKS_START_ENDPOINT, headers=DBRKS_REQ_HEADERS, json={'cluster_id': os.environ["DBRKS_CLUSTER_ID"]})
+  
     if response.status_code != 200:
         raise Exception(json.loads(response.content))
 
@@ -73,7 +64,6 @@ def restart_dbrks_cluster():
         "https://"+os.environ['DBRKS_INSTANCE']+".azuredatabricks.net/" + DBRKS_RESTART_ENDPOINT,
         headers=DBRKS_REQ_HEADERS,
         json=DBRKS_CLUSTER_ID
-        # json={'cluster_id': os.environ["DBRKS_CLUSTER_ID"]}
         )
     if response.status_code != 200:
         raise Exception(json.loads(response.content))

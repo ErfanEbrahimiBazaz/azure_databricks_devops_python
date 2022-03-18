@@ -9,7 +9,7 @@ TOKEN_REQ_HEADERS = {'Authorization': 'Bearer '+ os.environ['DBRKS_BEARER_TOKEN'
 
 
 
-os.environ["CLUSTER_NAME"] = """ "erfan-created-cluster4-from-py" """
+os.environ["CLUSTER_NAME"] = """ "temp-cluster-for-unittests" """
 os.environ["SPARK_VERSION"] = """ "7.3.x-scala2.12" """
 
 postjson = """{

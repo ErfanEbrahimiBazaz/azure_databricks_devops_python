@@ -9,15 +9,13 @@ DBRKS_REQ_HEADERS = {
     'X-Databricks-Azure-SP-Management-Token': os.environ['DBRKS_MANAGEMENT_TOKEN']}
 
 dbrks_rest_url = "https://"+os.environ['DBRKS_INSTANCE']+".azuredatabricks.net/api/2.0/dbfs/put"
-# DBRKS_DBFS_WHL_LOCation = os.environ['DBRKS_DBFS_WHL_LOC']
 
 wheel_location_in_pipeline = os.environ['SYSTEM_ARTIFACTSDIRECTORY'] + '/dist/' + os.path.basename(os.environ['WHL_NAME'])
 print('#############################')
 print('Constructed wheel location is: {}'.format(wheel_location_in_pipeline))
 print('#############################')
 
-# wheel_loaction = os.environ['SYSTEM_ARTIFACTSDIRECTORY'] + '/dist/' + os.path.basename(os.environ['WHL_NAME']) #'py_sample_package-0.6.5-py3-none-any.whl'
-# print(wheel_loaction)
+
 print('Wheel location according to code: {}'.format(wheel_location_in_pipeline))
 print('Working directory {}'.format(os. getcwd()))
 print('All files and folders in wheel location:')
@@ -41,11 +39,9 @@ print('New path: {}'.format('/' + os.environ['DBRKS_DBFS_WHL_LOC'] + '/'+ os.pat
 
 f = open(wheel_location_in_pipeline, 'rb')
 files = {"content": (wheel_location_in_pipeline, f)}
-# response = requests.post(dbrks_rest_url, files=files, headers=DBRKS_REQ_HEADERS, data={'path': '/Erfan_wheels/py_sample_package-0.6.5-py3-none-any.whl', 'overwrite': 'true'})
-# response = requests.post(dbrks_rest_url, files=files, headers=DBRKS_REQ_HEADERS, data={'path': '/Erfan_wheels/'+ os.path.basename(os.environ['WHL_NAME']), 'overwrite': 'true'})
-# response = requests.post(dbrks_rest_url, files=files, headers=DBRKS_REQ_HEADERS, data={'path': '/' + os.environ['DBRKS_DBFS_WHL_LOC'] + '/'+ os.path.basename(os.environ['WHL_NAME']), 'overwrite': 'true'})
+
 response = requests.post(dbrks_rest_url, files=files, headers=DBRKS_REQ_HEADERS, data={'path': '/' + DBRKS_DBFS_WHL_LOCation + '/'+ os.path.basename(os.environ['WHL_NAME']), 'overwrite': 'true'})
-# response = requests.post(dbrks_rest_url, files=files, headers=DBRKS_REQ_HEADERS, data={'path': '/'+os.environ['DBRKS_DBFS_WHL_LOC'] + '/' + os.path.basename(os.environ['WHL_NAME']), 'overwrite': 'true'})
+
 if response.status_code == 200:
     print(response.status_code)
 else:
