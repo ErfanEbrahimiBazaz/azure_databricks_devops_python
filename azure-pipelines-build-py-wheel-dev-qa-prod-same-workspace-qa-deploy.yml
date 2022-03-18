@@ -6,8 +6,8 @@ trigger: none
 resources:
   pipelines:
   - pipeline: dev-deploy-cd   
-    source: py-dataengineering-dip-core-deploy-dev-with-new-cluster #py-dataengineering-dip-core_dbrks_api_deploy_dev 
-    project: 'Data Integration Platform' 
+    source: py-project-dbrks-api-deploy-dev # This is the name of the pipeline in Azure DevOps not the yaml file name. 
+    project: 'MyProject' 
     trigger: true 
     
 
@@ -32,10 +32,10 @@ stages:
           displayName: Download built distribution
           inputs:
             source: 'specific'
-            project: 'Data Integration Platform'
+            project: 'MyProject'
             pipeline: 1287 
             runVersion: 'latestFromBranch'
-            runBranch: 'refs/heads/ORGTHDATAMA-1732'   
+            runBranch: 'refs/heads/myfeaturebranch'   
             artifactName: 'dfordbx'
             targetPath: '$(System.ArtifactsDirectory)'
 
@@ -83,10 +83,10 @@ stages:
           displayName: Download built distribution
           inputs:
             source: 'specific'
-            project: 'Data Integration Platform'
+            project: 'MyProject'
             pipeline: 1287 
             runVersion: 'latestFromBranch'
-            runBranch: 'refs/heads/ORGTHDATAMA-1732'  
+            runBranch: 'refs/heads/myfeaturebranch'  
             artifactName: 'dfordbx'
             targetPath: '$(System.ArtifactsDirectory)'
         
@@ -147,10 +147,10 @@ stages:
           displayName: Download built distribution
           inputs:
             source: 'specific'
-            project: 'Data Integration Platform'
+            project: 'MyProject'
             pipeline: 1287 
             runVersion: 'latestFromBranch'
-            runBranch: 'refs/heads/ORGTHDATAMA-1732' 
+            runBranch: 'refs/heads/myfeaturebranch' 
             artifactName: 'dfordbx'
             targetPath: '$(System.ArtifactsDirectory)'
 
